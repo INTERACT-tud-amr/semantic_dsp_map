@@ -167,7 +167,9 @@ public:
 
 
     /// @brief Update the map with input pose, images and point cloud. Output the occupied point cloud.
-    void update(cv::Mat &depth_value_mat, std::vector<MaskKpts> &ins_seg_result, Eigen::Vector3d &camera_position, Eigen::Quaterniond &camera_orientation, pcl::PointCloud<pcl::PointXYZRGB>::Ptr &occupied_point_cloud, pcl::PointCloud<pcl::PointXYZRGB>::Ptr &freespace_point_cloud, bool if_get_freespace=false, double time_stamp_double=0.0)
+    void update(cv::Mat &depth_value_mat, std::vector<MaskKpts> &ins_seg_result, Eigen::Vector3d &camera_position, Eigen::Quaterniond &camera_orientation, 
+                pcl::PointCloud<pcl::PointXYZRGB>::Ptr &occupied_point_cloud, pcl::PointCloud<pcl::PointXYZRGB>::Ptr &freespace_point_cloud, bool if_get_freespace=false, double time_stamp_double=0.0,
+                std::vector<Eigen::Vector3d> hand_arm_points = std::vector<Eigen::Vector3d>(), double hand_arm_distance_threshold = 0.15)
     {
         // Update time stamp, which is used in both object level and sub-object level update
         global_time_stamp += 1; 
@@ -224,7 +226,7 @@ public:
         std::unordered_map<int, int> track_to_label_id_map;
 
         // Generate the labeled point cloud
-        pt_tools_.generateLabeledPointCloud(depth_value_mat, ins_seg_result, labeled_point_cloud, tracked_objects_points, track_to_label_id_map, depth_noise_model_first_order_, depth_noise_model_zero_order_);
+        pt_tools_.generateLabeledPointCloud(depth_value_mat, ins_seg_result, labeled_point_cloud, tracked_objects_points, track_to_label_id_map, depth_noise_model_first_order_, depth_noise_model_zero_order_, true, hand_arm_points, hand_arm_distance_threshold);
 
 
 #if VERBOSE_MODE == 1

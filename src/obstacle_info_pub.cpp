@@ -5,6 +5,13 @@
 #include <pcl_ros/point_cloud.h>
 #include <pcl/point_types.h>
 #include <shape_msgs/SolidPrimitive.h>
+#include <queue>
+#include <vector>
+#include <iostream>
+#include <utility>
+
+using Point = pcl::PointXYZ;
+using Pair = std::pair<float, Point>; // (distance, point)
 
 class PointCloudProcessor
 {
@@ -38,6 +45,7 @@ private:
         object_array.header = cloud_msg->header;
 
         pcl::PointCloud<pcl::PointXYZ> filtered_cloud;
+        std::vector<Point> filtered_points;
 
         shape_msgs::SolidPrimitive sphere;
         sphere.type = shape_msgs::SolidPrimitive::SPHERE;
@@ -46,6 +54,8 @@ private:
 
         int count = 0;
         int max_count = 100;
+        std::vector<float> distances;
+
         for (const auto &point : cloud.points)
         {
             double dx = point.x - current_pose_.pose.position.x;
@@ -54,18 +64,31 @@ private:
 
             if (point.z > 0.15 && distance <= 3.0)
             {
-                derived_object_msgs::Object obj;
-                obj.pose.position.x = point.x;
-                obj.pose.position.y = point.y;
-                obj.pose.position.z = point.z;
-                obj.shape = sphere;
-
-                object_array.objects.push_back(obj);
-                filtered_cloud.push_back(point);
+                distances.push_back(distance);
+                filtered_points.push_back(point);
                 count++;
-                if (count >= max_count)
-                    break;
             }
+        }
+
+        std::vector<Point> closest_points;
+        if (distances.size() > max_count)
+        {
+            closest_points = getClosestPoints(filtered_points, distances, max_count);
+        }
+        else
+        {
+            closest_points = filtered_points;
+        }
+        
+        for (const auto &point : closest_points)
+        {
+            derived_object_msgs::Object obj;
+            obj.pose.position.x = point.x;
+            obj.pose.position.y = point.y;
+            obj.pose.position.z = point.z;
+            obj.shape = sphere;
+            object_array.objects.push_back(obj);
+            filtered_cloud.push_back(point);
         }
 
         int num_objects = object_array.objects.size();
@@ -88,6 +111,33 @@ private:
         filtered_cloud_msg.header = cloud_msg->header;
         filtered_points_pub_.publish(filtered_cloud_msg);
         ROS_INFO_THROTTLE(1, "Publishing %d obstacles. Valid: %d.", num_objects, count);
+    }
+
+    struct Compare {
+        bool operator()(const Pair& a, const Pair& b) {
+            return a.first < b.first; // Max heap: larger distances come first
+        }
+    };
+
+    std::vector<Point> getClosestPoints(const std::vector<Point>& points, const std::vector<float>& distances, int num_points=100) {
+        std::priority_queue<Pair, std::vector<Pair>, Compare> maxHeap;
+        
+        for (size_t i = 0; i < points.size(); ++i) {
+            if (maxHeap.size() < num_points) {
+                maxHeap.emplace(distances[i], points[i]);
+            } else if (distances[i] < maxHeap.top().first) {
+                maxHeap.pop();
+                maxHeap.emplace(distances[i], points[i]);
+            }
+        }
+        // Extract the closest 100 points
+        std::vector<Point> closestPoints;
+        while (!maxHeap.empty()) {
+            closestPoints.push_back(maxHeap.top().second);
+            maxHeap.pop();
+        }
+        
+        return closestPoints;
     }
 };
 

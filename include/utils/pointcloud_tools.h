@@ -85,9 +85,10 @@ public:
     /// @param tracked_objects_points Generated points of tracked objects.
     /// @param track_to_label_id_map Generated track id to label id map for tracked objects.
     /// @return 
-    int generateLabeledPointCloud(cv::Mat &depth_value_mat, std::vector<MaskKpts> &ins_seg_result,
+    int generateLabeledPointCloud(cv::Mat &depth_value_mat, std::vector<MaskKpts> &ins_seg_result, 
                                   std::vector<std::vector<LabeledPoint>> &cloud, std::unordered_map<uint16_t, std::vector<Eigen::Vector3d>> &tracked_objects_points, 
-                                  std::unordered_map<int, int> &track_to_label_id_map, float noise_model_first_order = 0.f, float noise_model_zero_order = 0.1f, bool use_global_coordinate = true)
+                                  std::unordered_map<int, int> &track_to_label_id_map, float noise_model_first_order = 0.f, float noise_model_zero_order = 0.1f, bool use_global_coordinate = true,
+                                  std::vector<Eigen::Vector3d> hand_arm_points = std::vector<Eigen::Vector3d>(), double hand_arm_distance_threshold = 0.15)
     {
         if(depth_value_mat.empty()){
             std::cerr << "Error: depth image is empty." << std::endl;
@@ -217,6 +218,11 @@ public:
         // Calculate the 3D point cloud
         int width = depth_value_mat.cols;
         int height = depth_value_mat.rows;
+        // int removed_points_count = 0;
+
+        // std::cout << "hand_arm_points: " << hand_arm_points.size() << std::endl;
+        // std::cout << "hand_arm_distance_threshold: " << hand_arm_distance_threshold << std::endl;
+
         for(int i=0; i<height; ++i) // Row
         {
             for(int j=0; j<width; ++j) // Col
@@ -238,6 +244,7 @@ public:
                     cloud[i][j] = point;
                     continue;
                 }
+
 #endif
 
                 Eigen::Vector3d point_3d; // point_3d_free_point; //CHG
@@ -246,6 +253,28 @@ public:
                 // Transform the point to the global frame
                 if(use_global_coordinate){
                     point_3d = camera_to_global_matrix.block<3,3>(0,0) * point_3d + camera_to_global_matrix.block<3,1>(0,3);
+                }
+
+                // Remove the points on the hand of the robot.
+                // Check if any hand_arm_points_is_provided
+                if(!hand_arm_points.empty()){
+                    // Check if the point is close to any of the hand_arm_points
+                    bool too_close = false;
+                    for(const auto &hand_arm_point : hand_arm_points){
+                        if((point_3d - hand_arm_point).norm() < hand_arm_distance_threshold){
+                            too_close = true;
+                            // std::cout << "Removed point: " << point_3d.transpose() << std::endl;
+                            // std::cout << "hand_arm_point: " << hand_arm_point.transpose() << std::endl;
+                            // std::cout << "distance: " << (point_3d - hand_arm_point).norm() << std::endl;
+                            break;
+                        }   
+                    }
+                    if(too_close){
+                        // removed_points_count++;
+                        point.is_valid = false;
+                        cloud[i][j] = point;
+                        continue;
+                    }
                 }
 
                 // Get the instance value
@@ -305,6 +334,8 @@ public:
                 cloud[i][j] = point;
             }
         }
+
+        // std::cout << "Removed points count: " << removed_points_count << std::endl;
 
         return 0;
     }

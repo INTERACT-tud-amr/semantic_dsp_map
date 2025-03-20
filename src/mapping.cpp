@@ -17,6 +17,7 @@
 #include <visualization_msgs/MarkerArray.h>
 
 #include <std_msgs/Int32.h>
+#include <std_msgs/Float64MultiArray.h>
 #include <sensor_msgs/PointCloud2.h>
 #include <sensor_msgs/Image.h>
 #include <settings/external_settings.h>
@@ -53,6 +54,9 @@ private:
     cv::Mat depth_image_;
     Eigen::Vector3d current_camera_position_, last_camera_position_;
     Eigen::Quaterniond current_camera_orientation_, last_camera_orientation_;
+
+    std::vector<Eigen::Vector3d> hand_arm_points_;
+    double hand_arm_distance_threshold_;
 
     double time_stamp_double_;
 
@@ -130,6 +134,9 @@ private:
 
         float depth_noise_model_first_order = config["depth_noise_model_first_order"].as<float>();
         float depth_noise_model_zero_order = config["depth_noise_model_zero_order"].as<float>();
+
+        hand_arm_distance_threshold_ = 0.3;
+
     
         // Set parameters for the SemanticDSPMap
         dsp_map_.setMapParameters(detection_probability, noise_number, nb_ptc_num_per_point, occupancy_threshold, max_obersevation_lost_time, forgetting_rate, max_forget_count, match_score_threshold, id_transition_probability);
@@ -153,10 +160,21 @@ private:
         message_filters::Synchronizer<MySyncPolicy> sync(MySyncPolicy(10), depth_image_sub, camera_pose_sub, mask_group_sub);
         sync.registerCallback(boost::bind(&MappingNode::syncCallback, this, _1, _2, _3));
 
+        ros::Subscriber hand_arm_points_sub = nh_.subscribe("/dingo2/poses", 1, &MappingNode::handArmPointsCallback, this);
+
         ros::spin();
     }
 
-
+    /// @brief The callback function for the hand arm points
+    /// @param hand_arm_points_msg 
+    void handArmPointsCallback(const std_msgs::Float64MultiArrayConstPtr& hand_arm_points_msg)
+    {
+        hand_arm_points_.clear();
+        for(int i = 0; i < hand_arm_points_msg->data.size(); i += 3){
+            Eigen::Vector3d hand_arm_point(hand_arm_points_msg->data[i], hand_arm_points_msg->data[i + 1], hand_arm_points_msg->data[i + 2]);
+            hand_arm_points_.push_back(hand_arm_point);
+        }
+    }
 
     /// @brief The callback function for the depth image, camera pose, and mask group
     /// @param depth_image_msg 
@@ -291,7 +309,7 @@ private:
         static int count = 0;
         static double total_time_cost = 0.0;
 
-        dsp_map_.update(depth_image_, tracking_result_handler_.tracking_result, current_camera_position_, current_camera_orientation_, occupied_point_cloud, freespace_point_cloud, if_output_freespace_, time_stamp_double_);
+        dsp_map_.update(depth_image_, tracking_result_handler_.tracking_result, current_camera_position_, current_camera_orientation_, occupied_point_cloud, freespace_point_cloud, if_output_freespace_, time_stamp_double_, hand_arm_points_, hand_arm_distance_threshold_);
         double time_cost = ros::Time::now().toSec() - time;
         count++;
         total_time_cost += time_cost;
