@@ -1276,12 +1276,12 @@ private:
                     static int background_id = g_label_id_map_default["Background"];
                     if(label_id == background_id){ 
                         // Color by z axis. Map to color_map_jet_256_
-#if SETTING != 3
+// #if SETTING != 3
                         // Adjust to display the color map in the right axis
                         int color_index = std::min(std::max(static_cast<int>((-pt.z+2.f)*51.2f), 0), 255);
-#else
-                        int color_index = std::min(std::max(static_cast<int>((pt.y+2.f)*51.2f), 0), 255);
-#endif
+// #else
+//                         int color_index = std::min(std::max(static_cast<int>((pt.y+2.f)*51.2f), 0), 255);
+// #endif
             
                         pt.r = color_map_jet_256_[color_index](0);
                         pt.g = color_map_jet_256_[color_index](1);

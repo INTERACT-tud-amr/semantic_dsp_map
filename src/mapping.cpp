@@ -182,8 +182,29 @@ private:
 
             depth_seq_ = depth_image_msg->header.seq;
 
-            current_camera_position_ = Eigen::Vector3d(camera_pose_msg->pose.position.x, camera_pose_msg->pose.position.y, camera_pose_msg->pose.position.z);
-            current_camera_orientation_ = Eigen::Quaterniond(camera_pose_msg->pose.orientation.w, camera_pose_msg->pose.orientation.x, camera_pose_msg->pose.orientation.y, camera_pose_msg->pose.orientation.z);
+            // current_camera_position_ = Eigen::Vector3d(camera_pose_msg->pose.position.x, camera_pose_msg->pose.position.y, camera_pose_msg->pose.position.z);
+            // current_camera_orientation_ = Eigen::Quaterniond(camera_pose_msg->pose.orientation.w, camera_pose_msg->pose.orientation.x, camera_pose_msg->pose.orientation.y, camera_pose_msg->pose.orientation.z);
+
+            // In the vicon frame, the topic actually is the robot frame. We need to convert it to the camera frame using the camera extrinsic matrix
+            Eigen::Vector3d robot_position(camera_pose_msg->pose.position.x, camera_pose_msg->pose.position.y, camera_pose_msg->pose.position.z);
+            Eigen::Quaterniond robot_orientation(camera_pose_msg->pose.orientation.w, camera_pose_msg->pose.orientation.x, camera_pose_msg->pose.orientation.y, camera_pose_msg->pose.orientation.z);
+            Eigen::Matrix3d robot_rotation = robot_orientation.toRotationMatrix();
+            Eigen::Matrix4d robot_pose_matrix = Eigen::Matrix4d::Identity();
+            robot_pose_matrix.block<3, 3>(0, 0) = robot_rotation;
+            robot_pose_matrix.block<3, 1>(0, 3) = robot_position;
+
+            // The camera extrinsic matrix
+            Eigen::Matrix4d camera_extrinsic;
+            camera_extrinsic << -0.0147294, -0.999679, 0.0206309, 0.0679996,
+                                0.409246, -0.0248531, -0.912086, 0.0601097,
+                                0.912305, -0.00499136, 0.40948, -0.351454,
+                                0, 0, 0, 1;
+            Eigen::Matrix4d camera_extrinsic_inverse = camera_extrinsic.inverse();
+            
+            Eigen::Matrix4d camera_pose_matrix = robot_pose_matrix * camera_extrinsic_inverse;
+
+            current_camera_position_ = Eigen::Vector3d(camera_pose_matrix(0, 3), camera_pose_matrix(1, 3), camera_pose_matrix(2, 3));
+            current_camera_orientation_ = Eigen::Quaterniond(camera_pose_matrix.block<3, 3>(0, 0));
         }
         catch (cv_bridge::Exception& e)
         {
