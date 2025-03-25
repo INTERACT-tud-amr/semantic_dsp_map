@@ -117,9 +117,30 @@ url={https://arxiv.org/abs/2409.11975},
 }
 ```
 
+## Steps for the INTERACT project demo
+Install-steps for the real-world dingo with a Zed2 camera using Vicon, clone the following in your catkin/src folder:
+```bash
+git clone -b semantic_dsp git@github.com:g-ch/simple_zed2_wrapper.git
+git clone git@github.com:g-ch/mask_kpts_msgs.git
+git clone --recursive -b dingo2_vicon git@github.com:INTERACT-tud-amr/semantic_dsp_map.git
+```
+
+For obtaining the semantic DSP map using Vicon and obtain the derived_object_msgs for the motion planner, run in separate terminals:
+```bash
+roslaunch dinova_bringup dinova.launch #make sure to run "sudo systemctl stop ros.service" beforehand
+roslaunch simple_zed2_wrapper zed2_semantic_dsp.launch
+roslaunch semantic_dsp_map zed2.launch
+rosrun semantic_dsp_map obstacle_info_pub
+```
+
+Visualize in Rviz:
+```bash
+/occupied_point #for the complete occupancy map
+/filtered_points #for the map publishing the closest/most relevant (100) obstacles
+```
 
 ## Trouble Shooting
 Check [here](docs/trouble_shooting.md)
 
-## Liciense
+## License
 Apache-2.0
