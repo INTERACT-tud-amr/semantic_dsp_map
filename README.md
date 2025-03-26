@@ -128,7 +128,7 @@ git clone --recursive -b dingo2_vicon git@github.com:INTERACT-tud-amr/semantic_d
 For obtaining the semantic DSP map using Vicon and obtain the derived_object_msgs for the motion planner, run in separate terminals:
 ```bash
 roslaunch dinova_bringup dinova.launch #make sure to run "sudo systemctl stop ros.service" beforehand
-roslaunch simple_zed2_wrapper zed2_semantic_dsp.launch
+roslaunch simple_zed2_wrapper zed2_semantic_dsp.launch external_semantic_seg_on:=false
 roslaunch semantic_dsp_map zed2.launch
 rosrun semantic_dsp_map obstacle_info_pub
 ```
