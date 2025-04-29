@@ -24,6 +24,7 @@
 #include <cv_bridge/cv_bridge.h>
 #include <image_transport/image_transport.h>
 #include <geometry_msgs/PoseStamped.h>
+#include <derived_object_msgs/ObjectArray.h>
 
 #include <mask_kpts_msgs/MaskGroup.h>
 #include <mask_kpts_msgs/MaskKpts.h>
@@ -56,6 +57,7 @@ private:
     Eigen::Quaterniond current_camera_orientation_, last_camera_orientation_;
 
     std::vector<Eigen::Vector3d> hand_arm_points_;
+    std::vector<std::string> hand_arm_joint_names_;
     double hand_arm_distance_threshold_;
 
     double time_stamp_double_;
@@ -135,7 +137,11 @@ private:
         float depth_noise_model_first_order = config["depth_noise_model_first_order"].as<float>();
         float depth_noise_model_zero_order = config["depth_noise_model_zero_order"].as<float>();
 
-        hand_arm_distance_threshold_ = 0.3;
+        hand_arm_distance_threshold_ = config["hand_arm_distance_threshold"].as<float>();
+
+        hand_arm_joint_names_ = config["links_poses_to_remove"].as<std::vector<std::string>>();
+
+        // hand_arm_distance_threshold_ = 0.3;
 
     
         // Set parameters for the SemanticDSPMap
@@ -160,19 +166,27 @@ private:
         message_filters::Synchronizer<MySyncPolicy> sync(MySyncPolicy(10), depth_image_sub, camera_pose_sub, mask_group_sub);
         sync.registerCallback(boost::bind(&MappingNode::syncCallback, this, _1, _2, _3));
 
-        ros::Subscriber hand_arm_points_sub = nh_.subscribe("/dingo2/poses", 1, &MappingNode::handArmPointsCallback, this);
+        ros::Subscriber hand_arm_points_sub = nh_.subscribe("/dingo2/dinova/fk_links", 1, &MappingNode::handArmPointsCallback, this);
 
         ros::spin();
     }
 
     /// @brief The callback function for the hand arm points
     /// @param hand_arm_points_msg 
-    void handArmPointsCallback(const std_msgs::Float64MultiArrayConstPtr& hand_arm_points_msg)
+    void handArmPointsCallback(const derived_object_msgs::ObjectArrayConstPtr& hand_arm_points_msg)
     {
         hand_arm_points_.clear();
-        for(int i = 0; i < hand_arm_points_msg->data.size(); i += 3){
-            Eigen::Vector3d hand_arm_point(hand_arm_points_msg->data[i], hand_arm_points_msg->data[i + 1], hand_arm_points_msg->data[i + 2]);
-            hand_arm_points_.push_back(hand_arm_point);
+        for(int i = 0; i < hand_arm_points_msg->objects.size(); i += 1){
+
+            for(auto &name : hand_arm_joint_names_)
+            {
+                if(hand_arm_points_msg->objects[i].header.frame_id == name)
+                {
+                    const auto& pose = hand_arm_points_msg->objects[i].pose;
+                    Eigen::Vector3d hand_arm_point(pose.position.x, pose.position.y, pose.position.z);
+                    hand_arm_points_.push_back(hand_arm_point);
+                }
+            }
         }
     }
 

@@ -29,3 +29,7 @@ depth_noise_model_zero_order: 0.3
 forgetting_rate: 1
 max_forget_count: 5
 id_transition_probability: 0.5
+
+
+hand_arm_distance_threshold: 0.3
+links_poses_to_remove: ["arm_lower_wrist_link", "arm_tool_frame", "arm_upper_wrist_link"]
