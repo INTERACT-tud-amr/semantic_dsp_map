@@ -80,6 +80,7 @@ private:
             closest_points = filtered_points;
         }
         
+        int object_id = 0;
         for (const auto &point : closest_points)
         {
             derived_object_msgs::Object obj;
@@ -87,8 +88,11 @@ private:
             obj.pose.position.y = point.y;
             obj.pose.position.z = point.z;
             obj.shape = sphere;
+            obj.id = object_id;
             object_array.objects.push_back(obj);
             filtered_cloud.push_back(point);
+
+            object_id ++;
         }
 
         int num_objects = object_array.objects.size();
@@ -100,8 +104,10 @@ private:
             obj.pose.position.y = 100;
             obj.pose.position.z = 100;
             obj.shape = sphere;
+            obj.id = object_id;
             object_array.objects.push_back(obj);
             num_objects++;
+            object_id ++;
         }
 
         object_pub_.publish(object_array);
